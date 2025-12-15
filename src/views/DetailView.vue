@@ -270,14 +270,17 @@ const onEditorReady = (quill) => {
 <style scoped>
 /* --- LAYOUT --- */
 .detailLayout {
-  display: grid;
-  grid-template-columns: 1fr;
+  /* 🔴 CHANGED: Use Flex for mobile to ensure natural stacking order */
+  display: flex;
+  flex-direction: column;
   gap: 40px;
   margin-bottom: 60px;
 }
 
+/* Tablet/Desktop: Switch to Grid */
 @media (min-width: 768px) {
   .detailLayout {
+    display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: start;
   }
@@ -290,6 +293,13 @@ const onEditorReady = (quill) => {
   border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
   display: block;
+}
+
+.infoCol {
+  /* 🔴 NEW: Ensure this column takes up space properly */
+  min-width: 0; 
+  display: flex;
+  flex-direction: column;
 }
 
 .creatureTitle {
@@ -313,8 +323,10 @@ const onEditorReady = (quill) => {
   font-size: 1.1rem;
   overflow-wrap: break-word;
   word-wrap: break-word;
+  margin-bottom: 30px; /* Ensure space before actions */
 }
 
+/* Fix images inside text description */
 .descriptionContent :deep(img) {
   max-width: 100%;
   height: auto;
@@ -322,53 +334,42 @@ const onEditorReady = (quill) => {
   margin: 10px 0;
 }
 
-.descriptionContent :deep(h1), 
-.descriptionContent :deep(h2) {
-  color: white;
-  margin-top: 20px;
-}
-
-.descriptionContent :deep(ul), 
-.descriptionContent :deep(ol) {
-  padding-left: 20px;
-}
-
-.descriptionContent :deep(hr) {
-  border: none;
-  border-top: 2px solid #444;
-  margin: 30px 0;
-}
-
 /* --- ADMIN ACTIONS --- */
 .adminActions {
-  margin-top: 30px;
+  margin-top: auto; /* Pushes to bottom of container if flex */
   padding-top: 20px;
   border-top: 1px solid #333;
+  padding-bottom: 10px; /* Add space at bottom */
 }
 
 .btnRow {
   display: flex;
   gap: 15px;
-  margin-top: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap; /* Allow buttons to stack on tiny screens */
 }
 
-/* 🟡 YELLOW EDIT BUTTON */
 .btnEdit {
   background-color: #fbc531;
   color: black;
   font-weight: bold;
 }
 
-/* 🟢 GREEN SUCCESS BUTTON (New) */
+.btnDelete {
+  background-color: #ff4757;
+  color: white;
+  font-weight: bold;
+}
+
 .btnSuccess {
   background-color: #2ecc71;
   color: white;
   font-weight: bold;
 }
 
-.btnEdit:hover, .btnSuccess:hover {
+/* Button Hover Effects */
+.btnEdit:hover, .btnDelete:hover, .btnSuccess:hover {
   filter: brightness(1.1);
-  /* 🛑 CHANGED: Removed transform/shifting */
 }
 
 .permissionText {
@@ -388,7 +389,7 @@ const onEditorReady = (quill) => {
 
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Smaller grid items for mobile */
   gap: 15px;
 }
 
@@ -398,13 +399,11 @@ const onEditorReady = (quill) => {
   overflow: hidden;
   cursor: pointer;
   background: #000;
-  /* 🛑 CHANGED: Removed transform from hover */
 }
 
 .galleryItem:hover {
-  /* No scale/shift */
   box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  filter: brightness(1.1); /* Slight brighten effect instead */
+  filter: brightness(1.1);
 }
 
 .galleryItem img { width: 100%; height: 100%; object-fit: cover; }
@@ -418,12 +417,12 @@ const onEditorReady = (quill) => {
   justify-content: center;
   align-items: center;
   z-index: 999;
-  padding: 20px;
+  padding: 10px; /* Reduced padding for mobile */
 }
 
 .editContainer {
   background: var(--cardBg);
-  padding: 30px;
+  padding: 20px; /* Reduced padding */
   border-radius: 12px;
   width: 100%;
   max-width: 800px;
@@ -451,8 +450,8 @@ const onEditorReady = (quill) => {
 
 .galleryThumb {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 70px; /* Smaller thumbs */
+  height: 70px;
 }
 
 .galleryThumb img {
