@@ -9,6 +9,7 @@
         <div class="navLinks">
           <router-link to="/" class="navBtn">Home</router-link>
           <router-link to="/list" class="navBtn">Creatures</router-link>
+          <router-link v-if="user" to="/settings" class="navBtn">Settings</router-link>
         </div>
 
         <div class="authSection">
@@ -42,6 +43,7 @@
       <div v-if="isMenuOpen" class="mobileMenu">
         <router-link to="/" class="mobileLink" @click="closeMenu">Home</router-link>
         <router-link to="/list" class="mobileLink" @click="closeMenu">Creatures</router-link>
+        <router-link v-if="user" to="/settings" class="navBtn">Settings</router-link>
         
         <div class="mobileDivider"></div>
 

@@ -5,6 +5,7 @@ import ListView from './views/ListView.vue'
 import DetailView from './views/DetailView.vue'
 import LoginView from './views/LoginView.vue'
 import CreateUserView from './views/CreateUserView.vue'
+import SettingsView from './views/SettingsView.vue'
 
 const router = createRouter({
   // 2. Use Hash History here
@@ -15,7 +16,8 @@ const router = createRouter({
     { path: '/list', name: 'list', component: ListView },
     { path: '/creature/:id', name: 'detail', component: DetailView },
     { path: '/login', name: 'login', component: LoginView },
-    { path: '/create-user', name: 'create-user', component: CreateUserView }
+    { path: '/create-user', name: 'create-user', component: CreateUserView },
+    { path: '/settings', name: 'settings', component: SettingsView }
   ],
 
   // 🔴 3. NEW: Scroll Behavior Logic

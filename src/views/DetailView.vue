@@ -10,12 +10,14 @@
         
         <div class="infoCol">
           <h1 class="creatureTitle">{{ creature.name }}</h1>
-          <p class="authorText" v-if="creature.authorEmail">Added by: {{ creature.authorEmail }}</p>
           
-          <!-- Rich Text Display -->
+          <!-- Displays the calculated name/email -->
+          <p class="authorText">
+            Added by: {{ authorDisplayName }}
+          </p>
+          
           <div class="ql-editor descriptionContent" v-html="creature.description"></div>
           
-          <!-- Action Buttons (Edit/Delete) -->
           <div v-if="canModify" class="adminActions">
             <p class="permissionText">
               Actions available because you are {{ isAdmin ? 'an Admin' : 'the Creator' }}.
@@ -28,7 +30,6 @@
         </div>
       </div>
 
-      <!-- Gallery Display -->
       <div v-if="creature.gallery && creature.gallery.length > 0" class="gallerySection">
         <h3 class="galleryTitle">Gallery</h3>
         <div class="galleryGrid">
@@ -44,11 +45,9 @@
       <div class="editContainer">
         <h2>Edit Creature</h2>
         
-        <!-- Name Edit -->
         <label class="label">Name</label>
         <input v-model="editData.name" class="formInput" />
 
-        <!-- Cover Image Edit -->
         <label class="label">Change Cover Image (Optional)</label>
         <div class="currentImagePreview" v-if="editData.image">
           <img :src="editData.image" style="height: 50px; border-radius: 4px;">
@@ -58,7 +57,6 @@
           <input type="file" @change="handleMainImageSelect" accept="image/*" class="formInput" />
         </div>
 
-        <!-- Description Edit (Quill) -->
         <label class="label">Description</label>
         <div class="editorWrapper">
           <QuillEditor 
@@ -71,10 +69,7 @@
           />
         </div>
 
-        <!-- Gallery Management -->
         <label class="label">Manage Gallery</label>
-        
-        <!-- 1. List existing images with Delete option -->
         <div class="galleryManager" v-if="editData.gallery.length > 0">
           <div v-for="(img, index) in editData.gallery" :key="index" class="galleryThumb">
             <img :src="getGalleryImage(img)" />
@@ -82,15 +77,12 @@
           </div>
         </div>
 
-        <!-- 2. Add new images -->
         <label class="label" style="margin-top: 15px;">Add More Images</label>
         <div class="fileInputWrapper">
           <input type="file" @change="handleGallerySelect" multiple accept="image/*" class="formInput" />
         </div>
 
-        <!-- Action Buttons -->
         <div class="btnRow" style="margin-top: 20px;">
-          <!-- 🟢 CHANGED: Class is now 'btnSuccess' -->
           <button @click="saveChanges" class="btn btnSuccess" :disabled="isUploading">
             {{ isUploading ? 'Saving...' : 'Save Changes' }}
           </button>
@@ -117,7 +109,6 @@ const ADMIN_EMAIL = "uniquecreadm1225@gmail.com";
 const CLOUD_NAME = "dzj4k39q5"; 
 const UPLOAD_PRESET = "unique_preset";
 
-// Editor Options
 const toolbarOptions = [
   [{ 'header': [1, 2, 3, false] }], 
   ['bold', 'underline', 'strike'], 
@@ -131,6 +122,7 @@ const route = useRoute();
 const router = useRouter();
 const creature = ref(null);
 const user = ref(null);
+const authorDisplayName = ref("Loading..."); 
 
 const isEditing = ref(false);
 const isUploading = ref(false);
@@ -165,6 +157,45 @@ const fetchCreature = async () => {
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     creature.value = { id: docSnap.id, ...docSnap.data() };
+    fetchAuthorProfile(creature.value.createdBy, creature.value.authorEmail);
+  }
+};
+
+// 🔴 UPDATED PROFILE LOGIC
+const fetchAuthorProfile = async (creatorUid, fallbackEmail) => {
+  // 1. Determine a safe fallback string.
+  // If fallbackEmail is undefined (missing), use "Unknown Creator"
+  const safeFallback = fallbackEmail || "Unknown Creator";
+
+  if (!creatorUid) {
+    authorDisplayName.value = safeFallback;
+    return;
+  }
+
+  try {
+    const profileSnap = await getDoc(doc(db, "profiles", creatorUid));
+    if (profileSnap.exists()) {
+      const data = profileSnap.data();
+      
+      // 2. Check Anonymous
+      if (data.isAnonymous) {
+        authorDisplayName.value = "Anonymous User";
+      } 
+      // 3. Check Nickname (Trim removes spaces to ensure it's not just "   ")
+      else if (data.nickname && data.nickname.trim().length > 0) {
+        authorDisplayName.value = data.nickname;
+      } 
+      // 4. Use Fallback (Email or Unknown)
+      else {
+        authorDisplayName.value = safeFallback;
+      }
+    } else {
+      // No profile found -> Use Fallback
+      authorDisplayName.value = safeFallback;
+    }
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    authorDisplayName.value = safeFallback;
   }
 };
 
@@ -270,14 +301,12 @@ const onEditorReady = (quill) => {
 <style scoped>
 /* --- LAYOUT --- */
 .detailLayout {
-  /* 🔴 CHANGED: Use Flex for mobile to ensure natural stacking order */
   display: flex;
   flex-direction: column;
   gap: 40px;
   margin-bottom: 60px;
 }
 
-/* Tablet/Desktop: Switch to Grid */
 @media (min-width: 768px) {
   .detailLayout {
     display: grid;
@@ -296,9 +325,7 @@ const onEditorReady = (quill) => {
 }
 
 .infoCol {
-  /* 🔴 FIX 1: Allow this column to shrink below the text size */
   min-width: 0; 
-  /* (Keep your existing flex properties) */
   display: flex;
   flex-direction: column;
 }
@@ -309,8 +336,6 @@ const onEditorReady = (quill) => {
   margin-bottom: 5px;
   color: var(--primaryColor);
   line-height: 1.1;
-  
-  /* 🔴 FIX 2: Force the long title to wrap */
   overflow-wrap: break-word;
   word-break: break-word;
   hyphens: auto;
@@ -329,10 +354,9 @@ const onEditorReady = (quill) => {
   font-size: 1.1rem;
   overflow-wrap: break-word;
   word-wrap: break-word;
-  margin-bottom: 30px; /* Ensure space before actions */
+  margin-bottom: 30px; 
 }
 
-/* Fix images inside text description */
 .descriptionContent :deep(img) {
   max-width: 100%;
   height: auto;
@@ -340,19 +364,36 @@ const onEditorReady = (quill) => {
   margin: 10px 0;
 }
 
+.descriptionContent :deep(h1), 
+.descriptionContent :deep(h2) {
+  color: white;
+  margin-top: 20px;
+}
+
+.descriptionContent :deep(ul), 
+.descriptionContent :deep(ol) {
+  padding-left: 20px;
+}
+
+.descriptionContent :deep(hr) {
+  border: none;
+  border-top: 2px solid #444;
+  margin: 30px 0;
+}
+
 /* --- ADMIN ACTIONS --- */
 .adminActions {
-  margin-top: auto; /* Pushes to bottom of container if flex */
+  margin-top: auto; 
   padding-top: 20px;
   border-top: 1px solid #333;
-  padding-bottom: 10px; /* Add space at bottom */
+  padding-bottom: 10px;
 }
 
 .btnRow {
   display: flex;
   gap: 15px;
   margin-top: 15px;
-  flex-wrap: wrap; /* Allow buttons to stack on tiny screens */
+  flex-wrap: wrap; 
 }
 
 .btnEdit {
@@ -373,7 +414,6 @@ const onEditorReady = (quill) => {
   font-weight: bold;
 }
 
-/* Button Hover Effects */
 .btnEdit:hover, .btnDelete:hover, .btnSuccess:hover {
   filter: brightness(1.1);
 }
@@ -395,7 +435,7 @@ const onEditorReady = (quill) => {
 
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Smaller grid items for mobile */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
   gap: 15px;
 }
 
@@ -423,12 +463,12 @@ const onEditorReady = (quill) => {
   justify-content: center;
   align-items: center;
   z-index: 999;
-  padding: 10px; /* Reduced padding for mobile */
+  padding: 10px; 
 }
 
 .editContainer {
   background: var(--cardBg);
-  padding: 20px; /* Reduced padding */
+  padding: 20px;
   border-radius: 12px;
   width: 100%;
   max-width: 800px;
@@ -456,7 +496,7 @@ const onEditorReady = (quill) => {
 
 .galleryThumb {
   position: relative;
-  width: 70px; /* Smaller thumbs */
+  width: 70px;
   height: 70px;
 }
 
