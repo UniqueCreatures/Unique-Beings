@@ -296,8 +296,9 @@ const onEditorReady = (quill) => {
 }
 
 .infoCol {
-  /* 🔴 NEW: Ensure this column takes up space properly */
+  /* 🔴 FIX 1: Allow this column to shrink below the text size */
   min-width: 0; 
+  /* (Keep your existing flex properties) */
   display: flex;
   flex-direction: column;
 }
@@ -308,6 +309,11 @@ const onEditorReady = (quill) => {
   margin-bottom: 5px;
   color: var(--primaryColor);
   line-height: 1.1;
+  
+  /* 🔴 FIX 2: Force the long title to wrap */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .authorText {

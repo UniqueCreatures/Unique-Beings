@@ -73,5 +73,10 @@ const getOptimizedImage = (url) => {
   font-size: 1.2rem;
   font-weight: 600;
   color: var(--textColor);
+  
+  /* 🔴 THE FIX: Forces long text to break onto new lines */
+  overflow-wrap: break-word; 
+  word-break: break-word; 
+  hyphens: auto;
 }
 </style>
