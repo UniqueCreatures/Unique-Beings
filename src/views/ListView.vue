@@ -77,7 +77,7 @@
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue';
 import { db, auth } from '../firebase';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import CreatureCard from '../components/CreatureCard.vue';
 import { Delta } from '@vueup/vue-quill';
@@ -195,16 +195,34 @@ const uploadToCloudinary = async () => {
       galleryUrls = await Promise.all(galleryFiles.value.map(file => uploadOneFile(file)));
     }
 
-    statusMsg.value = "Saving to Database...";
+  statusMsg.value = "Saving to Database...";
 
+    // 1. Check for Nickname/Anonymous status locally for the "snapshot" name
+    let displayName = user.value.email; 
+    try {
+      const profileSnap = await getDoc(doc(db, "profiles", user.value.uid));
+      if (profileSnap.exists()) {
+        const data = profileSnap.data();
+        if (data.isAnonymous) displayName = "Anonymous User";
+        else if (data.nickname) displayName = data.nickname;
+      }
+    } catch (e) {
+      console.log("Profile check failed, using email");
+    }
+
+    // 2. Save to Firebase
     await addDoc(collection(db, "creatures"), { 
       name: newCreature.name,
       description: newCreature.description,
       image: mainImageUrl,
       gallery: galleryUrls, 
+      
       createdBy: user.value.uid,
-      authorEmail: user.value.email,
-      // 🔴 NEW: Save timestamp for sorting
+      
+      // 🔴 IMPORTANT FIX: We must save BOTH the email and the display name
+      authorEmail: user.value.email, // <--- THIS WAS MISSING
+      authorName: displayName,       
+      
       createdAt: Date.now() 
     });
 
