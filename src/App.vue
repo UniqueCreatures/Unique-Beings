@@ -10,8 +10,7 @@
       <p>&copy; 2025 Unique Beings Archive</p>
     </footer>
 
-    <!-- 🔴 NEW: Scroll To Top Button -->
-    <!-- v-show hides it using CSS (display: none) so it keeps working in background -->
+    <!-- SCROLL TO TOP BUTTON -->
     <transition name="fade">
       <button 
         v-show="showScrollBtn" 
@@ -19,8 +18,8 @@
         class="scrollTopBtn"
         title="Scroll to top"
       >
-        <!-- Simple Arrow Icon using CSS/Text -->
-        ↑
+        <!-- Triangle Icon -->
+        ▲
       </button>
     </transition>
   </div>
@@ -30,27 +29,23 @@
 import NavBar from './components/NavBar.vue';
 import { ref, onMounted, onUnmounted } from 'vue';
 
-// 🔴 SCROLL LOGIC
 const showScrollBtn = ref(false);
 
 const handleScroll = () => {
-  // Show button if user scrolled down more than 300px
   showScrollBtn.value = window.scrollY > 300;
 };
 
 const scrollToTop = () => {
   window.scrollTo({
     top: 0,
-    behavior: 'smooth' // Makes it slide up nicely instead of jumping
+    behavior: 'smooth'
   });
 };
 
-// Attach the event listener when the app starts
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
 });
 
-// Clean up the listener if the app closes (good practice)
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
 });
@@ -76,59 +71,68 @@ onUnmounted(() => {
   border-top: 1px solid #333;
 }
 
-/* 🔴 SCROLL BUTTON STYLES */
+/* 🔴 UPDATED SCROLL BUTTON STYLES */
 .scrollTopBtn {
-  position: fixed; /* Sticks to the screen */
+  position: fixed;
   bottom: 30px;
   right: 30px;
   width: 50px;
   height: 50px;
-  background-color: var(--primaryColor);
-  color: white;
-  border: none;
-  border-radius: 50%; /* Circle */
-  font-size: 1.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  z-index: 99; /* Stays on top of content */
-  transition: transform 0.2s, background-color 0.2s;
   
-  /* Center the arrow */
+  /* Dark Black-ish Background */
+  background-color: #222;
+  
+  /* Purple Outline */
+  border: 2px solid var(--primaryColor);
+  
+  /* Purple Icon */
+  color: var(--primaryColor);
+  
+  /* Rounded Square */
+  border-radius: 12px;
+  
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  transition: all 0.2s ease;
+  
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 5px; /* Visual tweak for text arrow alignment */
+  padding-bottom: 3px; /* visual center fix for triangle */
 }
 
+/* Hover Effect: Fill with Purple, turn Icon White */
 .scrollTopBtn:hover {
-  background-color: #535bf2; /* Slightly darker/different purple */
-  transform: translateY(-5px); /* Moves up slightly on hover */
+  background-color: var(--primaryColor);
+  color: white;
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(100, 108, 255, 0.4);
 }
 
 .scrollTopBtn:active {
   transform: scale(0.9);
 }
 
-/* Animation for appearing/disappearing */
+/* Animation */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+  transform: translateY(20px);
 }
 
-/* Mobile Tweak: Move it slightly in so it doesn't cover content */
 @media (max-width: 768px) {
   .scrollTopBtn {
     bottom: 20px;
     right: 20px;
     width: 45px;
     height: 45px;
-    font-size: 1.2rem;
   }
 }
 </style>
