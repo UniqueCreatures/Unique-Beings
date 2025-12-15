@@ -1,47 +1,73 @@
 <template>
   <nav class="navContainer">
     <div class="navContent">
-      <!-- Logo -->
+      <!-- 1. Logo -->
       <router-link to="/" class="navLogo">UniqueBeings</router-link>
       
-      <!-- Main Navigation -->
-      <div class="navLinks">
-        <router-link to="/" class="navBtn">Home</router-link>
-        <router-link to="/list" class="navBtn">Creatures</router-link>
+      <!-- 2. Desktop Menu (Hidden on Mobile) -->
+      <div class="desktopMenu">
+        <div class="navLinks">
+          <router-link to="/" class="navBtn">Home</router-link>
+          <router-link to="/list" class="navBtn">Creatures</router-link>
+        </div>
+
+        <div class="authSection">
+          <!-- Admin Panel -->
+          <div v-if="isAdmin" class="roleGroup">
+            <router-link to="/create-user" class="navBtn addUserBtn">
+              <span class="plusIcon">+</span> New User
+            </router-link>
+            <div class="badge adminBadge">Admin Mode</div>
+          </div>
+
+          <!-- Creator Panel -->
+          <div v-if="isCreator" class="roleGroup">
+            <div class="badge creatorBadge">Creator Mode</div>
+          </div>
+
+          <!-- Auth -->
+          <button v-if="user" @click="handleLogout" class="navBtn logoutBtn">Logout</button>
+          <router-link v-else to="/login" class="navBtn loginBtn">Login</router-link>
+        </div>
       </div>
 
-      <!-- Right Side: Auth & Roles -->
-      <div class="authSection">
+      <!-- 3. Hamburger Icon (Visible ONLY on Mobile) -->
+      <button class="hamburgerBtn" @click="toggleMenu">
+        <img :src="listIcon" alt="Menu" class="menuIcon" />
+      </button>
+    </div>
+
+    <!-- 4. Mobile Menu Dropdown -->
+    <transition name="slide">
+      <div v-if="isMenuOpen" class="mobileMenu">
+        <router-link to="/" class="mobileLink" @click="closeMenu">Home</router-link>
+        <router-link to="/list" class="mobileLink" @click="closeMenu">Creatures</router-link>
         
-        <!-- 🛡️ ADMIN PANEL 🛡️ -->
-        <div v-if="isAdmin" class="roleGroup">
-          <!-- The 'Add User' button appears next to the badge -->
-          <router-link to="/create-user" class="navBtn addUserBtn">
-            <span class="plusIcon">+</span> New User
+        <div class="mobileDivider"></div>
+
+        <!-- Mobile Roles -->
+        <div v-if="isAdmin" class="mobileRoleRow">
+          <div class="badge adminBadge">Admin Mode</div>
+          <router-link to="/create-user" class="mobileLink" style="font-size: 1rem;" @click="closeMenu">
+            + New User
           </router-link>
-          
-          <div class="badge adminBadge">
-            <!--span class="icon">🛡️</span--> Admin Mode
-          </div>
         </div>
 
-        <!-- 🎨 CREATOR PANEL 🎨 -->
-        <div v-if="isCreator" class="roleGroup">
-          <div class="badge creatorBadge">
-            <!--span class="icon">🎨</span--> Creator Mode
-          </div>
+        <div v-if="isCreator" class="mobileRoleRow">
+          <div class="badge creatorBadge">Creator Mode</div>
         </div>
 
-        <!-- Login / Logout -->
-        <button v-if="user" @click="handleLogout" class="navBtn logoutBtn">
-          Logout
-        </button>
-
-        <router-link v-else to="/login" class="navBtn loginBtn">
+        <!-- Mobile Auth -->
+        <!-- Logout stays as a button (Red) -->
+        <button v-if="user" @click="handleLogout" class="navBtn logoutBtn mobileAuthBtn">Logout</button>
+        
+        <!-- 🔴 FIX: Login is now a standard mobile link so it matches Home/Creatures -->
+        <router-link v-else to="/login" class="mobileLink mobileAuthLink" @click="closeMenu">
           Login
         </router-link>
       </div>
-    </div>
+    </transition>
+
   </nav>
 </template>
 
@@ -50,34 +76,39 @@ import { ref, onMounted, computed } from 'vue';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useRouter } from 'vue-router';
+import listIcon from '@/assets/list.svg'; 
 
 // 🔴 CONFIG: YOUR ADMIN EMAIL
 const ADMIN_EMAIL = "uniquecreadm1225@gmail.com"; 
 
 const router = useRouter();
 const user = ref(null);
+const isMenuOpen = ref(false);
 
 onMounted(() => {
   onAuthStateChanged(auth, (u) => user.value = u);
 });
 
-// Computed: Is the user the Admin?
-const isAdmin = computed(() => {
-  return user.value && user.value.email === ADMIN_EMAIL;
-});
+const isAdmin = computed(() => user.value && user.value.email === ADMIN_EMAIL);
+const isCreator = computed(() => user.value && user.value.email !== ADMIN_EMAIL);
 
-// Computed: Is the user logged in BUT NOT the admin?
-const isCreator = computed(() => {
-  return user.value && user.value.email !== ADMIN_EMAIL;
-});
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value;
+};
+
+const closeMenu = () => {
+  isMenuOpen.value = false;
+};
 
 const handleLogout = async () => {
   await signOut(auth);
+  closeMenu();
   router.push('/');
 };
 </script>
 
 <style scoped>
+/* --- BASE NAVBAR --- */
 .navContainer {
   height: var(--navHeight);
   background-color: var(--cardBg);
@@ -98,6 +129,7 @@ const handleLogout = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
 .navLogo {
@@ -109,14 +141,22 @@ const handleLogout = async () => {
   text-decoration: none;
   background: transparent !important;
   box-shadow: none !important;
-  margin-right: 20px;
+  z-index: 102;
+}
+
+/* --- DESKTOP LAYOUT --- */
+.desktopMenu {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+  margin-left: 30px;
 }
 
 .navLinks {
   display: flex;
   gap: 10px;
   align-items: center;
-  flex: 1; /* Pushes auth section to the right */
 }
 
 .authSection {
@@ -130,12 +170,86 @@ const handleLogout = async () => {
   align-items: center;
   gap: 10px;
   padding-right: 15px;
-  border-right: 1px solid #444; /* Separator line */
+  border-right: 1px solid #444;
   margin-right: 5px;
 }
 
-/* --- BUTTON STYLES --- */
+/* --- HAMBURGER BUTTON --- */
+.hamburgerBtn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  z-index: 102;
+}
 
+.menuIcon {
+  width: 30px;
+  height: 30px;
+  filter: invert(1);
+}
+
+/* --- MOBILE MENU OVERLAY --- */
+.mobileMenu {
+  position: absolute;
+  top: var(--navHeight);
+  left: 0;
+  right: 0;
+  background-color: var(--cardBg);
+  border-bottom: 1px solid #333;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.mobileLink {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  display: block; /* Ensures full width click area */
+}
+
+.mobileLink:hover, .mobileLink.router-link-active {
+  background-color: #333;
+  color: var(--primaryColor);
+}
+
+.mobileDivider {
+  height: 1px;
+  background-color: #444;
+  margin: 5px 0;
+}
+
+.mobileRoleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 5px;
+}
+
+/* Mobile Logout Button */
+.mobileAuthBtn {
+  width: 100%;
+  text-align: center;
+  margin-top: 10px;
+  padding: 12px;
+}
+
+/* Mobile Login Link - Matches other links but adds spacing */
+.mobileAuthLink {
+  margin-top: 10px;
+  border: 1px solid #444; /* Optional: Keep a subtle border to make it pop slightly */
+  text-align: center;
+}
+
+/* --- SHARED STYLES --- */
 .navBtn {
   display: inline-block;
   text-decoration: none;
@@ -154,10 +268,8 @@ const handleLogout = async () => {
 .navBtn:hover {
   background-color: rgba(255, 255, 255, 0.1);
   color: white;
-  transform: translateY(-1px);
 }
 
-/* Active Link State */
 .navBtn.router-link-exact-active {
   background-color: var(--primaryColor);
   color: white;
@@ -165,50 +277,16 @@ const handleLogout = async () => {
   border-color: var(--primaryColor);
 }
 
-.navBtn.router-link-exact-active:hover {
-  background-color: var(--primaryColor);
-  opacity: 0.9;
-}
-
-/* --- SPECIAL BUTTONS --- */
-
-/* Add User Button (Small & Subtle) */
 .addUserBtn {
   font-size: 0.85rem;
   border: 1px solid #666;
   padding: 6px 12px;
 }
 
-.addUserBtn:hover {
-  border-color: #fff;
-}
-
-.plusIcon {
-  color: #4cd137;
-  font-weight: bold;
-  margin-right: 2px;
-}
-
-.loginBtn {
-  border: 1px solid #444;
-}
-
-.logoutBtn {
-  background-color: #ff4757;
-  color: white;
-  border: none;
-}
-
-.logoutBtn:hover {
-  background-color: #ff6b81;
-}
-
-/* --- BADGES --- */
+.loginBtn { border: 1px solid #444; }
+.logoutBtn { background-color: #ff4757; color: white; border: none; }
 
 .badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -219,31 +297,29 @@ const handleLogout = async () => {
   cursor: default;
 }
 
-.icon {
-  font-size: 1rem;
-}
-
-/* Admin Badge: Green */
 .adminBadge {
   background: rgba(76, 209, 55, 0.15);
   color: #4cd137;
   border: 1px solid rgba(76, 209, 55, 0.3);
-  box-shadow: 0 0 10px rgba(76, 209, 55, 0.1);
 }
 
-/* Creator Badge: Yellow */
 .creatorBadge {
   background: rgba(251, 197, 49, 0.15);
   color: #fbc531;
   border: 1px solid rgba(251, 197, 49, 0.3);
-  box-shadow: 0 0 10px rgba(251, 197, 49, 0.1);
 }
 
-/* Mobile Responsiveness */
+/* --- RESPONSIVE LOGIC --- */
 @media (max-width: 768px) {
-  .navLogo { font-size: 1.2rem; }
-  .badge { display: none; } /* Hide badges on small phones to save space */
-  .roleGroup { border: none; padding: 0; }
-  .navBtn { padding: 6px 10px; font-size: 0.85rem; }
+  .desktopMenu { display: none; }
+  .hamburgerBtn { display: block; }
+}
+
+.slide-enter-active, .slide-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-enter-from, .slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

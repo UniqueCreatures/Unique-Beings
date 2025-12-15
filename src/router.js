@@ -9,13 +9,27 @@ import CreateUserView from './views/CreateUserView.vue'
 const router = createRouter({
   // 2. Use Hash History here
   history: createWebHashHistory(), 
+  
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/list', name: 'list', component: ListView },
     { path: '/creature/:id', name: 'detail', component: DetailView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/create-user', name: 'create-user', component: CreateUserView }
-  ]
+  ],
+
+  // 🔴 3. NEW: Scroll Behavior Logic
+  scrollBehavior(to, from, savedPosition) {
+    // If the browser has a "saved" position (because you clicked the Back button),
+    // go to that position. This solves the "Return to ListView" requirement.
+    if (savedPosition) {
+      return savedPosition
+    } 
+    
+    // Otherwise (if you clicked a standard link), go to the top of the page.
+    // This solves the "put me up on top" requirement for everything else.
+    return { top: 0 }
+  }
 })
 
 export default router
