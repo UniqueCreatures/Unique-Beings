@@ -60,7 +60,8 @@ onUnmounted(() => {
 
 .mainContent {
   flex: 1;
-  padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
 }
 
 .appFooter {

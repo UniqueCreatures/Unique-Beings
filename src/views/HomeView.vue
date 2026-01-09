@@ -11,13 +11,18 @@
 <style scoped>
 .homeContainer {
   text-align: center;
-  padding-top: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
 }
 
 .mainTitle {
-  font-size: 3rem;
+  font-size: clamp(2rem, 5vw, 3rem);
   margin-bottom: 10px;
   color: var(--primaryColor);
+  padding: 0 1rem;
 }
 
 .subtitle {

@@ -38,8 +38,12 @@ const handleLogin = async () => {
 <style scoped>
 .loginContainer {
   max-width: 400px;
-  margin-top: 50px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  margin: 0 auto; /* Keep horizontal centering */
 }
 
 .blockBtn {
