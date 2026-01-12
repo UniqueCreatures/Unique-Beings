@@ -157,6 +157,7 @@ const fetchCreature = async () => {
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
     creature.value = { id: docSnap.id, ...docSnap.data() };
+    document.title = `Unique Beings - ${creature.value.name}`;
     fetchAuthorProfile(creature.value.createdBy, creature.value.authorEmail);
   }
 };

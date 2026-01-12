@@ -9,15 +9,15 @@ import SettingsView from './views/SettingsView.vue'
 
 const router = createRouter({
   // 2. Use Hash History here
-  history: createWebHashHistory(), 
-  
+  history: createWebHashHistory(),
+
   routes: [
-    { path: '/', name: 'home', component: HomeView },
-    { path: '/list', name: 'list', component: ListView },
-    { path: '/creature/:id', name: 'detail', component: DetailView },
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/create-user', name: 'create-user', component: CreateUserView },
-    { path: '/settings', name: 'settings', component: SettingsView }
+    { path: '/', name: 'home', component: HomeView, meta: { title: 'Home' } },
+    { path: '/list', name: 'list', component: ListView, meta: { title: 'Creatures List' } },
+    { path: '/creature/:id', name: 'detail', component: DetailView, meta: { title: 'Creature Detail' } },
+    { path: '/login', name: 'login', component: LoginView, meta: { title: 'Login' } },
+    { path: '/create-user', name: 'create-user', component: CreateUserView, meta: { title: 'Create User' } },
+    { path: '/settings', name: 'settings', component: SettingsView, meta: { title: 'Settings' } }
   ],
 
   // 🔴 3. NEW: Scroll Behavior Logic
@@ -26,12 +26,22 @@ const router = createRouter({
     // go to that position. This solves the "Return to ListView" requirement.
     if (savedPosition) {
       return savedPosition
-    } 
-    
+    }
+
     // Otherwise (if you clicked a standard link), go to the top of the page.
     // This solves the "put me up on top" requirement for everything else.
     return { top: 0 }
   }
 })
+
+router.beforeEach((to, from, next) => {
+  const defaultTitle = 'Unique Beings';
+  if (to.meta.title) {
+    document.title = `${defaultTitle} - ${to.meta.title}`;
+  } else {
+    document.title = defaultTitle;
+  }
+  next();
+});
 
 export default router
