@@ -3,41 +3,74 @@
     
     <!-- === VIEW MODE === -->
     <div v-if="!isEditing">
-      <div class="detailLayout">
-        <div class="imageCol">
-          <img :src="getOptimizedImage(creature.image)" class="detailImage" />
-        </div>
+      
+      <div class="detailGrid">
         
-        <div class="infoCol">
+        <!-- LEFT PANEL: Title, Visuals, Meta -->
+        <div class="sidePanel">
           <h1 class="creatureTitle">{{ creature.name }}</h1>
-          
-          <!-- Displays the calculated name/email -->
-          <p class="authorText">
-            Added by: {{ authorDisplayName }}
-          </p>
-          
-          <div class="ql-editor descriptionContent" v-html="creature.description"></div>
-          
-          <div v-if="canModify" class="adminActions">
-            <p class="permissionText">
-              Actions available because you are {{ isAdmin ? 'an Admin' : 'the Creator' }}.
+
+          <!-- Visuals Section (Hidden if no images) -->
+          <div class="visualsSection" v-if="allImages.length > 0">
+             <div class="mainImageWrapper">
+                <img 
+                  :src="getOptimizedImage(displayCoverImage)" 
+                  class="detailImage" 
+                  @click="openLightbox(0)"
+                />
+             </div>
+
+             <!-- Gallery Grid -->
+             <div class="galleryGrid" v-if="effectiveGallery.length > 0">
+                <div 
+                  v-for="(img, index) in visibleGalleryItems" 
+                  :key="index" 
+                  class="galleryItem"
+                  @click="openLightbox(index + 1)" 
+                >
+                  <img :src="getGalleryImage(img)" />
+                </div>
+
+                <!-- MORE BOX -->
+                <div 
+                  v-if="hiddenGalleryCount > 0" 
+                  class="galleryItem moreBox" 
+                  @click="openLightbox(visibleGalleryItems.length + 1)"
+                  :title="`${hiddenGalleryCount} more images`"
+                >
+                  <div class="moreBoxContent">
+                    <img src="@/assets/images.svg" class="moreIcon" alt="More" />
+                    <span class="moreText">+{{ hiddenGalleryCount }}</span>
+                  </div>
+                </div>
+             </div>
+          </div>
+
+          <!-- Meta Info (Always shows under visuals, or under title if no visuals) -->
+          <div class="metaInfo">
+            <p class="authorText">
+              Added by: {{ authorDisplayName }}
             </p>
-            <div class="btnRow">
-              <button @click="startEditing" class="btn btnEdit">Edit Creature</button>
-              <button @click="deleteCreature" class="btn btnDelete">Delete</button>
+
+            <div v-if="canModify" class="adminActions">
+              <p class="permissionText">
+                Actions available because you are {{ isAdmin ? 'an Admin' : 'the Creator' }}.
+              </p>
+              <div class="btnRow">
+                <button @click="startEditing" class="btn btnEdit">Edit Creature</button>
+                <button @click="deleteCreature" class="btn btnDelete">Delete</button>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- RIGHT PANEL: Description -->
+        <div class="contentPanel">
+           <div class="ql-editor descriptionContent" v-html="creature.description"></div>
+        </div>
+
       </div>
 
-      <div v-if="creature.gallery && creature.gallery.length > 0" class="gallerySection">
-        <h3 class="galleryTitle">Gallery</h3>
-        <div class="galleryGrid">
-          <div v-for="(img, index) in creature.gallery" :key="index" class="galleryItem">
-            <img :src="getGalleryImage(img)" @click="openImage(img)" />
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- === EDIT MODE (MODAL OVERLAY) === -->
@@ -93,11 +126,32 @@
       </div>
     </div>
 
+    <!-- === LIGHTBOX OVERLAY === -->
+    <transition name="fade">
+      <div v-if="lightboxIndex !== null" class="lightboxOverlay" @click.self="closeLightbox">
+        <button class="lightboxClose" @click="closeLightbox">×</button>
+        
+        <!-- Left Arrow -->
+        <button class="lightboxArrow arrowLeft" @click.stop="prevImage">
+           ◀
+        </button>
+
+        <div class="lightboxContent">
+          <img :src="getOptimizedImage(allImages[lightboxIndex])" class="lightboxImg" />
+        </div>
+
+        <!-- Right Arrow -->
+        <button class="lightboxArrow arrowRight" @click.stop="nextImage">
+           ▶
+        </button>
+      </div>
+    </transition>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive, nextTick } from 'vue';
+import { ref, onMounted, computed, reactive, nextTick, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { db, auth } from '../firebase';
 import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -129,6 +183,9 @@ const isUploading = ref(false);
 const statusMsg = ref("");
 const editQuillEditor = ref(null);
 
+// LIGHTBOX STATE
+const lightboxIndex = ref(null);
+
 const editData = reactive({
   name: '',
   description: '',
@@ -147,9 +204,97 @@ const canModify = computed(() => {
   return false;
 });
 
+// === COMPUTED IMAGE LOGIC ===
+
+// All viewable images (Cover + Gallery flat list)
+const allImages = computed(() => {
+  if (!creature.value) return [];
+  const imgs = [];
+  
+  // If explicitly has cover image, use it
+  if (creature.value.image) {
+    imgs.push(creature.value.image);
+  }
+  
+  if (creature.value.gallery && creature.value.gallery.length > 0) {
+    if (creature.value.image) {
+      // Normal case: Cover + Gallery
+      imgs.push(...creature.value.gallery);
+    } else {
+      // Fallback case: No cover, so entire gallery is the list (1st item acts as cover)
+      imgs.push(...creature.value.gallery); 
+    }
+  }
+  return imgs;
+});
+
+// The image displayed as the "Cover" (Big Image)
+const displayCoverImage = computed(() => {
+  if (allImages.value.length > 0) {
+    return allImages.value[0];
+  }
+  return null; 
+});
+
+// The gallery thumbs to display (The list MINUS the cover image)
+const effectiveGallery = computed(() => {
+  if (allImages.value.length <= 1) return []; // Only cover or empty
+  return allImages.value.slice(1);
+});
+
+// Logic for Truncating Gallery (Max 6 slots total -> 5 items + 1 "More" box)
+const MAX_VISIBLE_THUMBS = 6;
+const visibleGalleryItems = computed(() => {
+  if (effectiveGallery.value.length <= MAX_VISIBLE_THUMBS) {
+    return effectiveGallery.value;
+  }
+  // If we have more, show one LESS than max, so we have room for the "More" box
+  return effectiveGallery.value.slice(0, MAX_VISIBLE_THUMBS - 1); // e.g. Show 5
+});
+
+const hiddenGalleryCount = computed(() => {
+  if (effectiveGallery.value.length <= MAX_VISIBLE_THUMBS) return 0;
+  return effectiveGallery.value.length - visibleGalleryItems.value.length;
+});
+
+// === METHODS ===
+
+const openLightbox = (index) => {
+  if(index < 0 || index >= allImages.value.length) return;
+  lightboxIndex.value = index;
+  document.body.style.overflow = 'hidden'; 
+};
+
+const closeLightbox = () => {
+  lightboxIndex.value = null;
+  document.body.style.overflow = '';
+};
+
+const nextImage = () => {
+  if (lightboxIndex.value === null) return;
+  lightboxIndex.value = (lightboxIndex.value + 1) % allImages.value.length;
+};
+
+const prevImage = () => {
+  if (lightboxIndex.value === null) return;
+  lightboxIndex.value = (lightboxIndex.value - 1 + allImages.value.length) % allImages.value.length;
+};
+
+const handleKeydown = (e) => {
+  if (lightboxIndex.value === null) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowRight') nextImage();
+  if (e.key === 'ArrowLeft') prevImage();
+};
+
 onMounted(async () => {
   await fetchCreature();
   onAuthStateChanged(auth, (u) => user.value = u);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
 });
 
 const fetchCreature = async () => {
@@ -164,8 +309,6 @@ const fetchCreature = async () => {
 
 // 🔴 UPDATED PROFILE LOGIC
 const fetchAuthorProfile = async (creatorUid, fallbackEmail) => {
-  // 1. Determine a safe fallback string.
-  // If fallbackEmail is undefined (missing), use "Unknown Creator"
   const safeFallback = fallbackEmail || "Unknown Creator";
 
   if (!creatorUid) {
@@ -177,21 +320,14 @@ const fetchAuthorProfile = async (creatorUid, fallbackEmail) => {
     const profileSnap = await getDoc(doc(db, "profiles", creatorUid));
     if (profileSnap.exists()) {
       const data = profileSnap.data();
-      
-      // 2. Check Anonymous
       if (data.isAnonymous) {
         authorDisplayName.value = "Anonymous User";
-      } 
-      // 3. Check Nickname (Trim removes spaces to ensure it's not just "   ")
-      else if (data.nickname && data.nickname.trim().length > 0) {
+      } else if (data.nickname && data.nickname.trim().length > 0) {
         authorDisplayName.value = data.nickname;
-      } 
-      // 4. Use Fallback (Email or Unknown)
-      else {
+      } else {
         authorDisplayName.value = safeFallback;
       }
     } else {
-      // No profile found -> Use Fallback
       authorDisplayName.value = safeFallback;
     }
   } catch (error) {
@@ -280,8 +416,6 @@ const getGalleryImage = (url) => {
   return url.replace('/upload/', '/upload/c_fill,w_300,h_300/');
 };
 
-const openImage = (url) => window.open(url, '_blank');
-
 const onEditorReady = (quill) => {
   const toolbar = quill.getModule('toolbar');
   toolbar.addHandler('divider', () => {
@@ -300,67 +434,144 @@ const onEditorReady = (quill) => {
 </script>
 
 <style scoped>
-/* --- LAYOUT --- */
-.detailLayout {
+/* --- NEW LAYOUT: SIDE & CONTENT PANELS --- */
+.detailGrid {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  margin-bottom: 60px;
 }
 
-@media (min-width: 768px) {
-  .detailLayout {
+@media (min-width: 900px) {
+  .detailGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Left Panel (Visuals) needs space, Content needs space. 
+       Let's stick to a robust 45% - 55% split for balance. */
+    grid-template-columns: 0.8fr 1.2fr; 
     align-items: start;
+    gap: 40px;
   }
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.contentPanel {
+  min-width: 0;
+}
+
+/* --- VISUALS SECTION --- */
+.visualsSection {
+  margin-bottom: 20px;
+}
+
+.mainImageWrapper {
+  width: 100%;
+  margin-bottom: 15px;
 }
 
 .detailImage {
   width: 100%;
+  height: auto;
   max-height: 600px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  display: block;
+  cursor: zoom-in;
+  transition: transform 0.2s;
+  display: block; 
 }
 
-.infoCol {
-  min-width: 0; 
+.detailImage:hover {
+  transform: scale(1.01);
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 cols seems safer for side panel */
+  gap: 10px;
+}
+
+.galleryItem {
+  aspect-ratio: 1; 
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+  border: 1px solid #333;
+}
+
+.galleryItem:hover {
+  filter: brightness(1.2);
+  border-color: var(--primaryColor);
+}
+
+.galleryItem img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
+}
+
+/* MORE BOX STYLES */
+.moreBox {
+  background: #222;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #666;
+}
+.moreBoxContent {
+  text-align: center;
+  color: #bbb;
+}
+.moreIcon {
+  width: 30px;
+  height: 30px;
+  display: block;
+  margin: 0 auto 5px;
+  filter: invert(0.8);
+}
+.moreText {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+.moreBox:hover .moreText {
+  color: white;
+}
+.moreBox:hover .moreIcon {
+  filter: invert(1);
 }
 
+/* --- TEXT & META --- */
 .creatureTitle {
   font-size: 3rem;
   margin-top: 0;
-  margin-bottom: 5px;
+  margin-bottom: 20px;
   color: var(--primaryColor);
   line-height: 1.1;
-  overflow-wrap: break-word;
   word-break: break-word;
-  hyphens: auto;
+}
+
+.metaInfo {
+  margin-top: 10px;
 }
 
 .authorText {
   color: #666;
   font-size: 0.9rem;
   font-style: italic;
-  margin-bottom: 25px;
+  margin-bottom: 15px;
 }
 
 .descriptionContent {
   color: #ddd;
   line-height: 1.8;
   font-size: 1.1rem;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  margin-bottom: 30px; 
 }
 
 .descriptionContent :deep(img) {
   max-width: 100%;
-  height: auto;
   border-radius: 8px;
   margin: 10px 0;
 }
@@ -369,6 +580,7 @@ const onEditorReady = (quill) => {
 .descriptionContent :deep(h2) {
   color: white;
   margin-top: 20px;
+  line-height: 1.2;
 }
 
 .descriptionContent :deep(ul), 
@@ -384,36 +596,19 @@ const onEditorReady = (quill) => {
 
 /* --- ADMIN ACTIONS --- */
 .adminActions {
-  margin-top: auto; 
-  padding-top: 20px;
-  border-top: 1px solid #333;
+  padding-top: 10px;
   padding-bottom: 10px;
 }
 
 .btnRow {
   display: flex;
   gap: 15px;
-  margin-top: 15px;
   flex-wrap: wrap; 
 }
 
-.btnEdit {
-  background-color: #fbc531;
-  color: black;
-  font-weight: bold;
-}
-
-.btnDelete {
-  background-color: #ff4757;
-  color: white;
-  font-weight: bold;
-}
-
-.btnSuccess {
-  background-color: #2ecc71;
-  color: white;
-  font-weight: bold;
-}
+.btnEdit { background-color: #fbc531; color: black; font-weight: bold; }
+.btnDelete { background-color: #ff4757; color: white; font-weight: bold; }
+.btnSuccess { background-color: #2ecc71; color: white; font-weight: bold; }
 
 .btnEdit:hover, .btnDelete:hover, .btnSuccess:hover {
   filter: brightness(1.1);
@@ -425,35 +620,106 @@ const onEditorReady = (quill) => {
   margin-bottom: 10px;
 }
 
-/* --- GALLERY --- */
-.gallerySection {
-  margin-top: 50px;
-  padding-top: 30px;
-  border-top: 1px solid #333;
+/* --- LIGHTBOX --- */
+.lightboxOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
-.galleryTitle { font-size: 2rem; margin-bottom: 20px; }
-
-.galleryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
-  gap: 15px;
+.lightboxContent {
+  max-width: 90%;
+  max-height: 90vh;
 }
 
-.galleryItem {
-  aspect-ratio: 1; 
-  border-radius: 8px;
-  overflow: hidden;
+.lightboxImg {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  border-radius: 4px;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 3rem;
   cursor: pointer;
-  background: #000;
+  z-index: 2001;
 }
 
-.galleryItem:hover {
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  filter: brightness(1.1);
+.lightboxArrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  
+  /* Reuse styling from ScrollToTop button */
+  background-color: #222;
+  border: 2px solid var(--primaryColor);
+  color: var(--primaryColor);
+  border-radius: 12px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  z-index: 2001;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
-.galleryItem img { width: 100%; height: 100%; object-fit: cover; }
+.arrowLeft { left: 30px; }
+.arrowRight { right: 30px; }
+
+.lightboxArrow:hover {
+  background-color: var(--primaryColor);
+  color: white;
+  box-shadow: 0 0 15px var(--primaryColor);
+  transform: translateY(-50%) scale(1.1);
+}
+.lightboxArrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+/* Mobile Adjustments for Lightbox */
+@media (max-width: 768px) {
+  .lightboxArrow {
+    top: auto;
+    bottom: 20px;
+    transform: none;
+    width: 50px;
+    height: 50px;
+  }
+
+  .arrowLeft { left: 20px; }
+  .arrowRight { right: 20px; }
+
+  /* Ensure hover effect doesn't break positioning on mobile */
+  .lightboxArrow:hover {
+    transform: scale(1.1);
+  }
+  .lightboxArrow:active {
+    transform: scale(0.95);
+  }
+
+  /* Push image up slightly so it doesn't overlap with bottom buttons */
+  .lightboxImg {
+    max-height: 75vh;
+    margin-bottom: 60px; 
+  }
+}
 
 /* --- EDIT MODAL STYLES --- */
 .editOverlay {
@@ -550,5 +816,15 @@ const onEditorReady = (quill) => {
 .editorWrapper :deep(.ql-toolbar) {
   background-color: #f0f0f0;
   border-bottom: 1px solid #ccc;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
